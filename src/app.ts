@@ -8,35 +8,28 @@ let str = '';
 
 async function getDir(pathFile: string) {
 	const file = await readFile(pathFile, {encoding: "utf-8"})
-	//console.log('file', file)
 
 	const obj = JSON.parse(file);
-	console.log('MAIN - obj',obj)
 	await scanDocument(obj)
 	console.log('str', str);
 }
 
+let counts = 0;
 async function scanDocument (obj: any) {
-	let count = 0;
+
 	for(let value in obj){
-		// console.log('scanDocument - цикл', obj[value]);
-		// console.log('scanDocument тип', typeof obj[value]);
 
 		if(typeof obj[value] === "number" || typeof obj[value] === "string"){
-			console.log('is-str', obj[value])
-			str += `${ await addSpace(count)}${obj[value]}\n`;
-			count++;
+			const strCount = await addSpace(counts);
+			str += `${strCount} ${obj[value]}\n`;
+			await counts++;
 		}
+		
 		if(typeof obj[value] !== "number" || typeof obj[value] !== "string"){
-			 console.log(obj[value])
 
 			for (let value2 in obj[value]){
-			 	//console.log('is-object',obj[value][value2]);
-			// await scanDocument(obj[value][value2])
 			}
 			await scanDocument(obj[value]);
-			// str += `--${obj[value].name}\n`
-		 //await scanDocument(obj[value].items);
 		}
 	}
 }
