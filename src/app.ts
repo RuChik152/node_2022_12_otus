@@ -1,56 +1,120 @@
-import { readdir, readFile } from "fs/promises";
-import crypto from "crypto";
-import fs from "fs";
+import { readdir } from "fs/promises";
 import path from "path";
 import * as process from "process";
 
-let str = '';
+const pathForDir = path.resolve(process.argv[2]);
+const startPath = `${process.cwd()}\\${process.argv[2]}`;
 
-async function getDir(pathFile: string) {
-	const file = await readFile(pathFile, {encoding: "utf-8"})
-
-	const obj = JSON.parse(file);
-	await scanDocument(obj)
-	console.log('str', str);
+interface Dirent {
+  name: string;
+  isDirectory: () => boolean;
 }
 
-let counts = 0;
-async function scanDocument (obj: any) {
-
-	for(let value in obj){
-
-		if(typeof obj[value] === "number" || typeof obj[value] === "string"){
-			const strCount = await addSpace(counts);
-			str += `${strCount} ${obj[value]}\n`;
-			await counts++;
-		}
-		
-		if(typeof obj[value] !== "number" || typeof obj[value] !== "string"){
-
-			for (let value2 in obj[value]){
-			}
-			await scanDocument(obj[value]);
-		}
-	}
+interface PropsMap {
+  nameChildDir: string;
+  items: [];
+  id: string;
 }
 
-async function addSpace(count: number = 0) {
-	const space = '-';
-	let str = '';
-	for(let i = 0; i < count; i++) {
-		str += space;
-	}
-	return str;
+class Tree {
+  readonly pathFolder: string;
+  readonly map: [PropsMap | string];
+  readonly newMap: string[];
+  readonly parentDir: Promise<Dirent[] | null>;
+
+  constructor(pathFolder: string) {
+    this.pathFolder = pathFolder;
+    this.parentDir = this.#initParentDir();
+    this.map = [`${path.resolve(process.argv[2])}`];
+    this.newMap = [];
+  }
+
+  async #initParentDir() {
+    try {
+      return await readdir(this.pathFolder, {
+        encoding: "utf-8",
+        withFileTypes: true,
+      });
+    } catch (error) {
+      console.log("ERR-initParentDir", error);
+      return null;
+    }
+  }
+
+  async startReadDirNode() {
+    await this.#scanDir(startPath, process.argv[2]);
+    await this.#replacePathFile();
+    await this.#createMapDocument();
+  }
+
+  async #scanDir(pathFolder: string, pathName: string) {
+    try {
+      const dir = await readdir(pathFolder, {
+        encoding: "utf-8",
+        withFileTypes: true,
+      });
+
+      for (let value in dir) {
+        this.map.push(`${pathFolder}\\${dir[value].name}`);
+        if (dir[value].isDirectory()) {
+          await this.#scanDir(
+            `${pathFolder}\\${dir[value].name}`,
+            dir[value].name
+          );
+        }
+      }
+    } catch (error) {
+      console.log("scanDir", error);
+      return null;
+    }
+  }
+
+  #getMap() {
+    return this.map;
+  }
+
+  #getNewMap() {
+    return this.newMap;
+  }
+
+  async #replacePathFile() {
+    const str = `${process.cwd()}\\`;
+    const pathList = this.#getMap();
+
+    pathList.forEach((el) => {
+      if (typeof el === "string") {
+        this.newMap.push(el.replace(str, ""));
+      }
+    });
+  }
+
+  async #createMapDocument() {
+    let str = "";
+    const arr = this.#getNewMap();
+
+    arr.forEach((el) => {
+      const value = el.match(/\\/gi);
+      if (value !== null) {
+        str += `\u2502${this.#addTabToString(
+          value.length
+        )}\u2514\u2500\u2500\u2500\u2500${el.replace(/^.*[\\\/]/gi, "")}\n`;
+      } else {
+        str += `${el.replace(/^.*[\\\/]/gi, "")}\n`;
+      }
+    });
+    await console.log(str);
+  }
+
+  #addTabToString(count: number): string {
+    let str = "";
+    const hr = " ";
+
+    for (let i = 0; i < count; i++) {
+      str += hr;
+    }
+
+    return str;
+  }
 }
 
-// console.log('TEMPLATE',`
-// 1
-// |--2
-// |----3
-// |----4
-// |--5
-// |--6
-// `)
-
-const pathFile = path.resolve(process.cwd(), 'lesson1_mock.json');
-getDir(pathFile);
+const test = new Tree(pathForDir).startReadDirNode();
